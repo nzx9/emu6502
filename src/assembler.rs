@@ -282,20 +282,22 @@ pub fn next_instruction(rom: &Vec<u8>, pc: u16) -> (Instruction, u16) {
     (instruction, (_pc + instruction_size) as u16)
 }
 
-pub fn disassemble(rom: &Vec<u8>) {
-    let (mut instruction, mut pc) = (Instruction::ukn(), 0);
-    while (pc as usize) < rom.len() {
-        (instruction, pc) = crate::assembler::next_instruction(&rom, pc);
-        println!("{}", fmt_dasm(instruction));
-    }
-}
+pub fn disassemble(rom: &Vec<u8>, show_line_number: bool) -> String {
+    let mut pc = 0;
+    let mut dis_asm = String::new();
+    let mut counter: u32 = 0;
 
-pub fn operands_as_lend(operands: Vec<u8>) -> u16 {
-    let mut lend: u16 = 0;
-    for operand in operands {
-        lend += operand as u16;
+    while (pc as usize) < rom.len() {
+        let result = crate::assembler::next_instruction(&rom, pc);
+        pc = result.1;
+        if show_line_number {
+            counter += 1;
+            dis_asm.push_str(&format!("{:>3}: ", counter));
+        }
+        dis_asm.push_str(&fmt_dasm(result.0));
+        dis_asm.push_str("\n");
     }
-    lend
+    dis_asm
 }
 
 pub fn fmt_dasm(instruction: Instruction) -> String {
