@@ -69,7 +69,7 @@ impl CPU {
         self.pc = pc;
     }
 
-    pub fn mem_read(&mut self, addr_mod: AddrMod, operands: &Vec<u8>) -> Option<u8> {
+    pub fn read(&mut self, addr_mod: &AddrMod, operands: &Vec<u8>) -> Option<u8> {
         match addr_mod {
             AddrMod::Immediate => Some(operands[0]),
             AddrMod::ZeroPage => Some(self.memory.read(operands[0] as u16)),
@@ -100,7 +100,7 @@ impl CPU {
         }
     }
 
-    pub fn mem_write(&mut self, addr_mod: AddrMod, operands: &Vec<u8>, val: u8) {
+    pub fn mem_write(&mut self, addr_mod: &AddrMod, operands: &Vec<u8>, val: u8) {
         match addr_mod {
             AddrMod::ZeroPage => self.memory.write(operands[0] as u16, val),
             AddrMod::ZeroPageX => self.memory.write((operands[0] + self.x) as u16, val),
@@ -147,13 +147,13 @@ impl CPU {
         match instr.opcode.as_str() {
             "ADC" => {
                 // Add with carry
-                let val = self.mem_read(instr.addr_mod, &instr.operands);
+                let val = self.read(&instr.addr_mod, &instr.operands);
                 if !val.is_none() {
                     let b7 = get_bit!(self.a, 7);
 
                     match self.a.checked_add(val.unwrap()) {
                         Some(v) => {
-                            self.a += val.unwrap();
+                            self.a += v;
                             self.flags.trig_c_if(false);
                         }
                         None => {
@@ -163,21 +163,71 @@ impl CPU {
                     };
 
                     self.flags.trig_z_if(self.a == 0);
-                    self.flags.trig_v_if(get_bit!(self.a, 7) != b7);
                     self.flags.trig_n_if(check_bit_one!(self.a, 7));
+                    self.flags.trig_v_if(get_bit!(self.a, 7) != b7);
+                }
+            }
+            "AND" => {
+                // AND
+                let val = self.read(&instr.addr_mod, &instr.operands);
+                if !val.is_none() {
+                    self.a &= val.unwrap();
+                    self.flags.trig_z_if(self.a == 0);
+                    self.flags.trig_n_if(check_bit_one!(self.a, 7));
+                }
+            }
+            "ASL" => {
+                if instr.addr_mod == AddrMod::Accumulator {
+                    self.flags.trig_c_if(check_bit_one!(self.a, 7));
+                    self.a = self.a << 1;
+                } else {
+                    let val = self.read(&instr.addr_mod, &instr.operands);
+                    if !val.is_none() {
+                        self.flags.trig_c_if(check_bit_one!(val.unwrap(), 7));
+                        self.mem_write(&instr.addr_mod, &instr.operands, val.unwrap() << 1);
+                    }
+                }
+                self.flags.trig_z_if(self.a == 0);
+                self.flags.trig_n_if(check_bit_one!(self.a, 7));
+            }
+            "BCC" => {
+                // Branch if carry clear
+                if !self.flags.c {
+                    self.pc += instr.operands[0] as u16;
+                }
+            }
+            "BCS" => {
+                // Branch if carry set
+                if self.flags.c {
+                    self.pc += instr.operands[0] as u16;
+                }
+            }
+            "BEQ" => {
+                // Branch if equal
+                if self.flags.z {
+                    self.pc += instr.operands[0] as u16;
+                }
+            }
+            "BIT" => {
+                // Bit test
+                let val = self.read(&instr.addr_mod, &instr.operands);
+                if !val.is_none() {
+                    self.flags.trig_z_if(self.a & val.unwrap() == 0);
+                    self.flags.trig_n_if(check_bit_one!(val.unwrap(), 7));
+                    self.flags.trig_v_if(check_bit_one!(val.unwrap(), 6));
                 }
             }
             "STA" => {
                 // Memory <- Accumulator
-                self.mem_write(instr.addr_mod, &instr.operands, self.a);
+                self.mem_write(&instr.addr_mod, &instr.operands, self.a);
             }
             "STX" => {
                 // Memory <- X
-                self.mem_write(instr.addr_mod, &instr.operands, self.x);
+                self.mem_write(&instr.addr_mod, &instr.operands, self.x);
             }
             "STY" => {
                 // Memory <- Y
-                self.mem_write(instr.addr_mod, &instr.operands, self.y);
+                self.mem_write(&instr.addr_mod, &instr.operands, self.y);
             }
             "" => {}
 
