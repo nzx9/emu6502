@@ -1,12 +1,12 @@
 #[derive(Debug)]
 pub struct Flags {
-    c: bool,
-    z: bool,
-    i: bool,
-    d: bool,
-    b: bool,
-    v: bool,
-    n: bool,
+    pub c: bool,
+    pub z: bool,
+    pub i: bool,
+    pub d: bool,
+    pub b: bool,
+    pub v: bool,
+    pub n: bool,
 }
 
 impl Flags {
